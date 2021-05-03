@@ -1,5 +1,3 @@
-import { randomDate, defaultImage } from "./util.js";
-
 const onRegenerate = () => {
   const generateButton = document.getElementById("generate");
   setTimeout(() => {
@@ -11,16 +9,21 @@ const onRegenerate = () => {
   renderContent();
 };
 
+const getContent = async () => {
+  // AWS API Gateway
+  // TODO: This is fine for now, without traffic. Need to add more security/access rights here
+  // so only this website can access the AWS endpoint
+  return fetch('https://9l313n0znl.execute-api.us-west-2.amazonaws.com/default/space-kanye__content')
+    .then(response => response.json())
+    .catch((err) => {
+      console.error(`Failed to fetch content from AWS: ${err}`);
+      return null;
+    });
+}
+
 const getKanyeElement = () => {
   return document.getElementById("kanye-quote");
 }
-
-const getKanyeQuote = () => {
-  return fetch("https://api.kanye.rest")
-    .then((response) => response.json())
-    .then(({ quote }) => quote)
-    .catch((err) => console.error(`Failed to fetch kanye quote: ${err}`));
-};
 
 const renderKanyeQuote = async (kanyeQuote) => {
   // const kanyeQuote = await getKanyeQuote();
@@ -33,34 +36,6 @@ const renderKanyeQuote = async (kanyeQuote) => {
 const getApodImageElement = () => {
   return document.getElementById("apod");
 }
-
-const getApodImageSrc = (retryCount = 0) => {
-  if (retryCount >= 3) {
-    console.error("Too many retries.");
-    return defaultImage;
-  }
-
-  const date = randomDate(new Date(2015, 1, 1), new Date());
-  const photoDate = new Date(
-    date.getTime() - date.getTimezoneOffset() * 60 * 1000
-  )
-    .toISOString()
-    .split("T")[0];
-
-  return fetch(
-    `https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date=${photoDate}`
-  )
-    .then((response) => response.json())
-    .then(({ url }) => {
-      const isValid = !url.startsWith('https://www.youtube') && !url.startsWith('https://player.vimeo');
-      if (isValid) {
-        return url;
-      } else {
-        return getApodImageSrc(retryCount + 1);
-      }
-    })
-    .catch((err) => console.error(`Failed to fetch apod image: ${err}`));
-};
 
 const renderApodImage = async (apodSrc) => {
   // const apodSrc = await getApodImageSrc();
@@ -104,12 +79,13 @@ const findScreenRatio = () => {
 }
 
 const renderContent = async () => {
-  const [ kanyeQuote, apodSrc ] = await Promise.all([
-    getKanyeQuote(), getApodImageSrc()
-  ]);
+  const content = await getContent();
 
-  renderApodImage(apodSrc);
-  renderKanyeQuote(kanyeQuote);
+  if (content) {
+    const { image: { url: apodSrc }, quote: kanyeQuote } = content;
+    renderApodImage(apodSrc);
+    renderKanyeQuote(kanyeQuote);
+  }
 }
 
 // Add new elements
